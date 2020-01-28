@@ -2,7 +2,7 @@ package myerrorlint
 
 import (
 	"fmt"
-	"go/token"
+	//"go/token"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
@@ -27,13 +27,13 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 func runFunc(pass *analysis.Pass, fn *ssa.Function) {
-	reportf := func(category string, pos token.Pos, format string, args ...interface{}) {
-		pass.Report(analysis.Diagnostic{
-			Pos:      pos,
-			Category: category,
-			Message:  fmt.Sprintf(format, args...),
-		})
-	}
+	//reportf := func(category string, pos token.Pos, format string, args ...interface{}) {
+	//	pass.Report(analysis.Diagnostic{
+	//		Pos:      pos,
+	//		Category: category,
+	//		Message:  fmt.Sprintf(format, args...),
+	//	})
+	//}
 
 	seen := make([]bool, len(fn.Blocks)) // seen[i] means visit should ignore block i
 	var visit func(b *ssa.BasicBlock, stack []fact)
@@ -42,6 +42,7 @@ func runFunc(pass *analysis.Pass, fn *ssa.Function) {
 			return
 		}
 		seen[b.Index] = true
+		fmt.Printf("BasicBlock: %+v", b)
 
 		for _, d := range b.Dominees() {
 			visit(d, stack)
@@ -52,4 +53,9 @@ func runFunc(pass *analysis.Pass, fn *ssa.Function) {
 	if fn.Blocks != nil {
 		visit(fn.Blocks[0], make([]fact, 0, 20))
 	}
+}
+
+type fact struct {
+	value  ssa.Value
+	ourErr bool
 }
