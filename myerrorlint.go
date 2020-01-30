@@ -10,20 +10,37 @@ import (
 )
 
 const Doc = `check for errors of wrong type returned from our functions`
+const Name = "myerrorlint"
 
-var Analyzer = &analysis.Analyzer{
-	Name:     "myerrorlint",
-	Doc:      Doc,
-	Requires: []*analysis.Analyzer{buildssa.Analyzer},
-	Run:      run,
+type Config struct{}
+
+func NewAnalyzerWithoutRun() *analysis.Analyzer {
+	return &analysis.Analyzer{
+		Name:     Name,
+		Doc:      Doc,
+		Requires: []*analysis.Analyzer{buildssa.Analyzer},
+		//Run should be filled letter
+	}
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
-	ssainput := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
-	for _, fn := range ssainput.SrcFuncs {
-		runFunc(pass, fn)
+func NewAnalyzer(cfg Config) *analysis.Analyzer {
+	return &analysis.Analyzer{
+		Name:     Name,
+		Doc:      Doc,
+		Requires: []*analysis.Analyzer{buildssa.Analyzer},
+		Run:      NewRun(cfg),
 	}
-	return nil, nil
+}
+
+// will use cfg later
+func NewRun(cfg Config) func(pass *analysis.Pass) (interface{}, error) {
+	return func(pass *analysis.Pass) (interface{}, error) {
+		ssainput := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
+		for _, fn := range ssainput.SrcFuncs {
+			runFunc(pass, fn)
+		}
+		return nil, nil
+	}
 }
 
 func runFunc(pass *analysis.Pass, fn *ssa.Function) {
