@@ -158,7 +158,7 @@ func fWithCorrectWrappedError() error {
 var dynFuncFromOtherPkg = b.FunctionFromOtherPkg
 
 func fWithIncorrectDynCall() error {
-	return dynFuncFromOtherPkg() // want `\[warn\] dynamically dispatched function call: t0\(\)`
+	return dynFuncFromOtherPkg() // want `dynamically dispatched function call: t0\(\)`
 }
 
 func fWithNilError() error {

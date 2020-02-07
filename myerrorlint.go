@@ -180,9 +180,7 @@ func checkCallInstruction(pass *analysis.Pass, v ssa.CallInstruction, cfg *Confi
 	}
 	// (d) any other value, indicating a dynamically dispatched function call.
 	// not supported - we cant even check pkg for it
-	if cfg.ReportUnknown {
-		reportf(pass, retPos(v, defaultPos), "[warn] dynamically dispatched function call: %v", commonCall)
-	}
+	reportf(pass, retPos(v, defaultPos), "dynamically dispatched function call: %v", commonCall)
 	return
 }
 
