@@ -1,0 +1,35 @@
+run:
+  deadline: 30m
+  tests: false
+  skip-dirs:
+    - bin$
+    - \.git$
+    - misc$
+    - spec$
+    - pkg$
+
+  skip-files:
+    - "_rpc.go"
+    - "_easyjson.go"
+    - ".pb.go"
+
+linters-settings:
+  custom:
+    myerrorlint:
+      path: ./myerrorlint.so
+      description: "check error type"
+      original-url: github.com/Rikkuru/myerrorlint
+
+linters:
+  disable-all: true
+  enable:
+    - myerrorlint
+  fast: false
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+output:
+  format: tab
+  uniq-by-line: false

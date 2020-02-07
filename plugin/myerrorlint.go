@@ -10,7 +10,7 @@ type analyzerPlugin struct{}
 // This must be implemented
 func (*analyzerPlugin) GetAnalyzers() []*analysis.Analyzer {
 	return []*analysis.Analyzer{
-		linter.NewAnalyzer(linter.Config{}),
+		linter.NewAnalyzer(linter.Config{OurPackages: []string{}, AllowedTypes: []string{}, ReportUnknown: true}),
 	}
 }
 
