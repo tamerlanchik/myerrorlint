@@ -10,6 +10,11 @@ import (
 
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
-	analizer := linter.NewAnalyzer(linter.Config{AllowedTypes: []string{"a.myError"}, OurPackages: []string{"a"}, ReportUnknown: true})
+	analizer := linter.NewAnalyzer(linter.Config{
+		AllowedTypes:              []string{"a.myError"},
+		OurPackages:               []string{"a"},
+		ReportUnknown:             true,
+		AllowErrorfWrap:           true,
+		WrapFuncWithFirstArgError: []string{"a.Wrap"}})
 	analysistest.Run(t, testdata, analizer, "a")
 }

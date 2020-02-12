@@ -19,10 +19,14 @@ Unknown cases:
 	that our functions return correct objects. Use objects with allowed types instead of objects with error interface`
 const Name = "myerrorlint"
 
+// TODO: if some of func can return external errors (for example Unwrap of our error) they can be ignorred but their return values should not be returned by other functions
+
 type Config struct {
-	AllowedTypes  []string // if no type then only check that we return errors from our pkgs
-	OurPackages   []string // linter assumes that functions from our packages return allowed errors. If run linter on all our packages it will be true
-	ReportUnknown bool     // report error if unknown case (error from map and such)
+	AllowedTypes              []string // if no type then only check that we return errors from our pkgs
+	OurPackages               []string // linter assumes that functions from our packages return allowed errors. If run linter on all our packages it will be true
+	ReportUnknown             bool     // report error if unknown case (error from map and such)
+	AllowErrorfWrap           bool     // check for fmt.Errorf wrapped error
+	WrapFuncWithFirstArgError []string // Wrap functions that take error as first param (like github.com/pkg/errors.Wrap)
 }
 
 func NewAnalyzerWithoutRun() *analysis.Analyzer {
@@ -111,29 +115,39 @@ func isAllowedErrorType(t types.Type, cfg *Config) bool {
 	return false
 }
 
-func isWrapCall(call *ssa.CallCommon) (isWrap bool, v ssa.Value) {
+func isWrapCall(call *ssa.CallCommon, cfg *Config) (isWrap bool, v ssa.Value) {
 	function := call.StaticCallee()
-	if function.Name() != "Errorf" || function.Pkg.Pkg.Path() != "fmt" {
-		return false, nil
-	}
 	args := call.Args
-	if len(args) != 2 {
-		return false, nil
-	}
-	if fmtSlice, ok := args[1].(*ssa.Slice); ok {
-		// has IndexAddr for every arg passed to ...interface{}
-		for _, fmtPointer := range *fmtSlice.X.Referrers() {
-			if idxAddr, ok := fmtPointer.(*ssa.IndexAddr); ok {
-				// has command that stores interface to idxAddr
-				if storeInstr, ok := (*idxAddr.Referrers())[0].(*ssa.Store); ok {
-					if makeInterface, ok := storeInstr.Val.(*ssa.MakeInterface); ok {
-						// finaly check arg is error
-						if isErrorType(makeInterface.X.Type()) {
-							return true, makeInterface.X
+	if cfg.AllowErrorfWrap && function.Name() == "Errorf" && function.Pkg.Pkg.Path() == "fmt" {
+		// check if Errorf wraps error
+		if len(args) != 2 {
+			return false, nil
+		}
+		if fmtSlice, ok := args[1].(*ssa.Slice); ok {
+			// has IndexAddr for every arg passed to ...interface{}
+			for _, fmtPointer := range *fmtSlice.X.Referrers() {
+				if idxAddr, ok := fmtPointer.(*ssa.IndexAddr); ok {
+					// has command that stores interface to idxAddr
+					if storeInstr, ok := (*idxAddr.Referrers())[0].(*ssa.Store); ok {
+						if makeInterface, ok := storeInstr.Val.(*ssa.MakeInterface); ok {
+							// finaly check arg is error
+							if isErrorType(makeInterface.X.Type()) {
+								return true, makeInterface.X
+							}
 						}
 					}
 				}
 			}
+		}
+	}
+	for _, allowedFunc := range cfg.WrapFuncWithFirstArgError {
+		fullName := function.Pkg.Pkg.Path() + "." + function.Name()
+		if allowedFunc == fullName {
+			// wraps first param
+			if len(args) > 1 {
+				return true, args[0]
+			}
+
 		}
 	}
 	return false, nil
@@ -160,11 +174,13 @@ func checkCallInstruction(pass *analysis.Pass, v ssa.CallInstruction, cfg *Confi
 	}
 	function := commonCall.StaticCallee()
 	if function != nil {
-		if ok, wrappedErr := isWrapCall(commonCall); ok {
+		if ok, wrappedErr := isWrapCall(commonCall, cfg); ok {
 			// check that wrapped error is allowed
 			allowedValue(pass, wrappedErr, cfg, retPos(v, defaultPos), seen)
 			return
-		}
+		} //else {
+		//reportf(pass, retPos(v, defaultPos), "not wrap: %v", commonCall.StaticCallee().Pkg.Pkg.Path() +  )
+		//}
 		// (a) statically dispatched call to a package-level function, an anonymous function, or a method of a named type
 		// (b) immediately applied function literal with free variables
 		pkgName := function.Pkg.Pkg.Path()

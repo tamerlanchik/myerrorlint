@@ -155,6 +155,18 @@ func fWithCorrectWrappedError() error {
 	return fmt.Errorf("err: %s, %w, %d", "str", myError(""), 11)
 }
 
+func Wrap(err error, msg string) error {
+	return myError(err.Error())
+}
+
+func fWithCorrestWrappedError2() error {
+	return Wrap(myError(""), "wrap some err")
+}
+
+func fWithIncorrestWrappedError2() error {
+	return Wrap(b.F(), "wrap some err") // want "error not from our pkg: b"
+}
+
 var dynFuncFromOtherPkg = b.FunctionFromOtherPkg
 
 func fWithIncorrectDynCall() error {
