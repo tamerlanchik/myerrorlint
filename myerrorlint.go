@@ -197,7 +197,6 @@ func checkCallInstruction(pass *analysis.Pass, v ssa.CallInstruction, cfg *Confi
 	// (d) any other value, indicating a dynamically dispatched function call.
 	// not supported - we cant even check pkg for it
 	reportf(pass, retPos(v, defaultPos), "dynamically dispatched function call: %v", commonCall)
-	return
 }
 
 // check if error value is allowed
@@ -280,7 +279,6 @@ func allowedValue(pass *analysis.Pass, v ssa.Value, cfg *Config, defaultPos toke
 		return
 	}
 	reportf(pass, retPos(v, defaultPos), "not our type error: %s", v.Type().String())
-	return
 }
 
 func runFunc(pass *analysis.Pass, fn *ssa.Function, cfg *Config) {
