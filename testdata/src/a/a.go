@@ -230,8 +230,17 @@ func fIncorrectErrorFromPhi() error {
 	return err
 }
 
+//TODO: maybe allow error synonims
 type someOtherError error
 
 func fIncorrectErrorFromChangeType() error {
 	return someOtherError(globError) // want "not our type error: a.someOtherError"
+}
+
+func fIncorrectErrorFromFreeVar() (err error) {
+	f := func() error {
+		err = &notMyError{} // want `not our type error: \*a.notMyError`
+		return err
+	}
+	return f()
 }

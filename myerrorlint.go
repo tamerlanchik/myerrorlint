@@ -254,12 +254,18 @@ func allowedValue(pass *analysis.Pass, v ssa.Value, cfg *Config, defaultPos toke
 							allowedValue(pass, store.Val, cfg, retPos(store, defaultPos), seen)
 						}
 					}
+				case *ssa.FreeVar:
+					for _, instr := range *xValue.Referrers() {
+						if store, ok := instr.(*ssa.Store); ok {
+							allowedValue(pass, store.Val, cfg, retPos(store, defaultPos), seen)
+						}
+					}
 				case *ssa.FieldAddr:
 					reportf(pass, retPos(v, defaultPos), "cant check error type for struct field")
 				case *ssa.IndexAddr:
 					reportf(pass, retPos(v, defaultPos), "cant check error type for slice element")
 				default:
-					reportf(pass, retPos(v, defaultPos), "[warn] unsupported case for error from UnOp with value=%#v", xValue)
+					reportf(pass, retPos(v, defaultPos), "[warn] unsupported case for error from UnOp(MUL) with value=%#v", xValue)
 				}
 				return
 			}
