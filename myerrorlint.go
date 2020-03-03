@@ -20,6 +20,7 @@ Unknown cases:
 const Name = "myerrorlint"
 
 // TODO: if some of func can return external errors (for example Unwrap of our error) they can be ignorred but their return values should not be returned by other functions
+// TODO: check if func is a wrap function by its comments - need to somehow get function declaration tags for that
 
 type Config struct {
 	AllowedTypes              []string // if no type then only check that we return errors from our pkgs
@@ -220,6 +221,12 @@ func allowedValue(pass *analysis.Pass, v ssa.Value, cfg *Config, defaultPos toke
 		switch v := v.(type) {
 		case *ssa.MakeInterface: // var err error = sometype{}
 			allowedValue(pass, v.X, cfg, retPos(v, defaultPos), seen)
+		case *ssa.ChangeType:
+			allowedValue(pass, v.X, cfg, retPos(v, defaultPos), seen)
+		case *ssa.Phi: // alternatives
+			for _, altV := range v.Edges {
+				allowedValue(pass, altV, cfg, retPos(v, defaultPos), seen)
+			}
 		case ssa.CallInstruction:
 			checkCallInstruction(pass, v, cfg, defaultPos, seen)
 		case *ssa.Extract:
@@ -252,7 +259,7 @@ func allowedValue(pass *analysis.Pass, v ssa.Value, cfg *Config, defaultPos toke
 				case *ssa.IndexAddr:
 					reportf(pass, retPos(v, defaultPos), "cant check error type for slice element")
 				default:
-					reportf(pass, retPos(v, defaultPos), "[warn] unsupported case for error value=%#v", v)
+					reportf(pass, retPos(v, defaultPos), "[warn] unsupported case for error from UnOp with value=%#v", xValue)
 				}
 				return
 			}

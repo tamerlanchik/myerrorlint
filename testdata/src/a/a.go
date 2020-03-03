@@ -213,3 +213,25 @@ func fOurErrorFromSlice() error {
 	s := []myError{myError("")}
 	return s[0]
 }
+
+func fCorrectErrorFromPhi() error {
+	err, _ := fWithCorrectType()
+	if err == globError {
+		err = nil
+	}
+	return err
+}
+
+func fIncorrectErrorFromPhi() error {
+	err := &notMyError{} // want `not our type error: \*a.notMyError`
+	if err == globError {
+		err = nil
+	}
+	return err
+}
+
+type someOtherError error
+
+func fIncorrectErrorFromChangeType() error {
+	return someOtherError(globError) // want "not our type error: a.someOtherError"
+}
