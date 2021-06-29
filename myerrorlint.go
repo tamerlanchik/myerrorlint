@@ -1,6 +1,7 @@
 package myerrorlint
 
 import (
+	"flag"
 	"fmt"
 	"go/constant"
 	"go/token"
@@ -12,12 +13,12 @@ import (
 	"golang.org/x/tools/go/ssa"
 )
 
-const Doc = `check for errors of wrong type returned from our functions (allowed type defined in cfg)
+const Doc = `123 check for errors of wrong type returned from our functions (allowed type defined in cfg)
 Unknown cases:
 	- Error from map, struct, slice - whould have to check all actions on that object,
 	also we dont check fields of objects in return values so we would not be able to assume
 	that our functions return correct objects. Use objects with allowed types instead of objects with error interface`
-const Name = "myerrorlint"
+const Name = "myerrorlinttt"
 
 // TODO: if some of func can return external errors (for example Unwrap of our error) they can be ignorred but their return values should not be returned by other functions
 // TODO: check if func is a wrap function by its comments - need to somehow get function declaration tags for that
@@ -39,17 +40,114 @@ func NewAnalyzerWithoutRun() *analysis.Analyzer {
 	}
 }
 
-func NewAnalyzer(cfg Config) *analysis.Analyzer {
-	return &analysis.Analyzer{
-		Name:     Name,
-		Doc:      Doc,
-		Requires: []*analysis.Analyzer{buildssa.Analyzer},
-		Run:      NewRun(cfg),
-	}
+type StringSliceValue struct {
+	Value []string
+	Defined bool
 }
 
-// will use cfg later
+func (s *StringSliceValue) String() string{
+	return strings.Join(s.Value, ",")
+}
+
+func (s *StringSliceValue) Set(src string) error{
+	s.Value = strings.Split(src, ",")
+	s.Defined = true
+	return nil
+}
+
+func (s StringSliceValue) Inflate(dest []string) []string{
+	if s.Defined {
+		return s.Value
+	}
+	return dest
+}
+
+type BoolValue struct {
+	Value bool
+	Defined bool
+}
+
+func (s *BoolValue) String() string{
+	if s.Value {
+		return "1"
+	}
+	return "0"
+}
+
+func (s *BoolValue) Set(src string) error{
+	if src == "false" {
+		s.Value = false
+	} else if src == "true" {
+		s.Value = true
+	} else {
+		s.Defined = false
+		return fmt.Errorf("bad boolean value: %s", src)
+	}
+	s.Defined = true
+	return nil
+}
+
+func (s BoolValue) Inflate(dest bool) bool {
+	if s.Defined {
+		return s.Value
+	}
+	return dest
+}
+
+var flagSet flag.FlagSet
+type Config2 struct {
+	AllowedTypes              StringSliceValue // if no type then only check that we return errors from our pkgs
+	OurPackages               StringSliceValue // linter assumes that functions from our packages return allowed errors. If run linter on all our packages it will be true
+	ReportUnknown             BoolValue     // report error if unknown case (error from map and such)
+	AllowErrorfWrap           BoolValue     // check for fmt.Errorf wrapped error
+	WrapFuncWithFirstArgError StringSliceValue // Wrap functions that take error as first param (like github.com/pkg/errors.Wrap)
+}
+
+func (cfg Config2) Export(dest *Config) {
+	dest.AllowedTypes = cfg.AllowedTypes.Inflate(dest.AllowedTypes)
+	dest.OurPackages = cfg.OurPackages.Inflate(dest.OurPackages)
+	dest.ReportUnknown = cfg.ReportUnknown.Inflate(dest.ReportUnknown)
+	dest.AllowErrorfWrap = cfg.AllowErrorfWrap.Inflate(dest.AllowErrorfWrap)
+	dest.WrapFuncWithFirstArgError = cfg.WrapFuncWithFirstArgError.Inflate(dest.WrapFuncWithFirstArgError)
+}
+var config Config2
+func setFlagset() {
+	flagSet.Var(&config.AllowErrorfWrap, "allow-types", "")
+	flagSet.Var(&config.OurPackages, "our-pkgs", "")
+	flagSet.Var(&config.ReportUnknown, "report-unknown", "")
+	flagSet.Var(&config.AllowErrorfWrap, "allow-errorf-wrap", "")
+	flagSet.Var(&config.WrapFuncWithFirstArgError, "wrap-funcs", "")
+}
+
+//type ExtraAnalyser struct {
+//	analysis.Analyzer
+//	cfg Config
+//}
+//func (a *ExtraAnalyser) inflateConfig() {
+//	fmt.Println(a.Flags.Name())
+//	fmt.Println(a.Flags.Args())
+//}
+
+
+func NewAnalyzer(cfg Config) *analysis.Analyzer {
+	setFlagset()
+	fmt.Println("Flagset inflated")
+	return &analysis.Analyzer{
+			Name:     Name,
+			Doc:      Doc,
+			Requires: []*analysis.Analyzer{buildssa.Analyzer},
+			Run: NewRun(cfg),
+			Flags: flagSet,
+		}
+}
+
+//will use cfg later
 func NewRun(cfg Config) func(pass *analysis.Pass) (interface{}, error) {
+	fmt.Println("Start flagset")
+	fmt.Println(flagSet.Name())
+	fmt.Println(flagSet.Args())
+	config.Export(&cfg)
+	fmt.Println(cfg.AllowedTypes, cfg.OurPackages, cfg.AllowErrorfWrap, cfg.ReportUnknown, cfg.WrapFuncWithFirstArgError)
 	return func(pass *analysis.Pass) (interface{}, error) {
 		ssainput := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
 		for _, fn := range ssainput.SrcFuncs {
